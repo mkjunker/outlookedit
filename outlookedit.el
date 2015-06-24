@@ -1,21 +1,54 @@
-;;; outlookedit.el
+;;; outlookedit.el --- As updated by me.
+
+;;; http://www.emacswiki.org/emacs/MsOutlook
+;;; https://github.com/dholm/outlookedit/blob/master/outlookedit.el
+;;
+;; Author: Various
+;; Package-Version: 20150624.93625
+;; Keywords: convenience
+
+;;; Commentary:
 ;; use a couple of Tcl scripts to invoke my Tcl scripts to do COM
 ;; related actions on Outlook to get and replace text in the
 ;; reply/compose boxes allowing it to be edited in Emacs
-;;
-(defvar mno-get-outlook-body
-  (concat "tclsh "
-	  (getenv "HOME")
-	  "\\.emacs.d\\vendor\\outlookedit\\grabOutlookMessage.tcl"))
-(defvar mno-put-outlook-body
-  (concat "tclsh "
-	  (getenv "HOME")
-	  "\\.emacs.d\\vendor\\outlookedit\\putMessageInOutlook.tcl"))
-(defvar mno-outlook-default-justification 'full)
 
+(defgroup mno nil "Customization for mno" :group nil)
+
+(defcustom
+  mno-get-outlook-body
+  (concat "cscript //B //Job:getMessage "
+          (convert-standard-filename
+           (expand-file-name
+            (locate-user-emacs-file "lisp/outlook_emacs.wsf"))))
+  "Command line for fetching the body of an Outlook message."
+  :type 'string
+  :group 'mno)
+
+(defcustom mno-put-outlook-body
+  (concat "cscript //B //Job:putMessage "
+          (convert-standard-filename
+           (expand-file-name
+            (locate-user-emacs-file "lisp/outlook_emacs.wsf"))))
+  "Command line for storing the body to an Outlook message."
+  :type 'string
+  :group 'mno)
+
+(defcustom mno-outlook-default-justification
+  'left
+  "Default justification for Outlook messages."
+  :type '(choice (const left)
+                 (const full)
+                 (const none)
+                 (const right)
+                 (const center))
+  :group 'mno)
+
+;;;###autoload
 (global-set-key "\C-coe" 'mno-edit-outlook-message)
+;;;###autoload
 (global-set-key "\C-cos" 'mno-save-outlook-message)
 
+;;;###autoload
 (defun mno-edit-outlook-message ()
   "* Slurp an outlook message into a new buffer ready for editing
 
@@ -41,6 +74,7 @@ edit was started when this command is invoked."
       (insert body)
       (goto-char (point-min)))))
 
+;;;###autoload
 (defun mno-save-outlook-message ()
   "* Send the outlook message buffer contents back to Outlook current window
 
@@ -54,9 +88,11 @@ Outlook 2002 apparently has a BodyFormat parameter to control this."
   (save-excursion
     (let ((buf (get-buffer "*Outlook Message*")))
       (set-buffer buf)
-      (shell-command-on-region (point-min) (point-max) mno-put-outlook-body)
-      (set-buffer-modified-p 'nil) ; now kill-buffer won't complain!
-      (kill-buffer "*Outlook Message*"))))
+      (when (= (shell-command-on-region
+                (point-min) (point-max) mno-put-outlook-body)
+               0)
+        (set-buffer-modified-p 'nil) ; now kill-buffer won't complain!
+        (kill-buffer "*Outlook Message*")))))
 
 (provide 'outlookedit)
-;;;end of file outlookedit.el
+;;; outlookedit.el ends here
